@@ -17,9 +17,10 @@ namespace LastFiveItemsPutaway
         {
             using (IDbConnection cnn = new OracleConnection("DATA SOURCE=ashprdwmrb-scan.gspt.net:1521/ASH_MTV2WMS_RPT;USER ID=MTV2_READONLY_USER;PASSWORD=mtv2r0user"))
             {
-                string query = "select d.lodnum, d.prtnum, k.alt_prtnum, d.tostol, a.first_name, a.last_name, d.usr_id, d.trndte from MTV2WMSPRD.dlytrn d, MTV2WMSPRD.adrmst a, MTV2WMSPRD.alt_prtmst k where d.usr_id = a.adrnam" +
-                    " and d.frstol like 'WAV%' and d.lodnum like 'L%' and d.prtnum = k.prtnum and d.prt_client_id in ('100001', '100002') and k.alt_prt_typ = 'VPN' and d.trndte >= to_date(to_char(current_timestamp, 'yyyymmdd'), 'yyyymmdd')" +
-                    " and a.adrtyp = 'USR' and d.to_arecod like 'PCKCS%' and d.oprcod <> 'PCKREP' and d.frstol like 'WAV%'";
+                string query = "select d.lodnum, d.prtnum, k.alt_prtnum,d.tostol, a.first_name, a.last_name, d.usr_id, d.trndte, d.trnqty, b.qty location_units from MTV2WMSPRD.adrmst a, MTV2WMSPRD.alt_prtmst k, MTV2WMSPRD.dlytrn d left outer " +
+                    "join(select l.stoloc, sum(d.untqty) qty from MTV2WMSPRD.invdtl d, MTV2WMSPRD.invsub s, MTV2WMSPRD.invlod l where l.lodnum = s.lodnum and d.subnum = s.subnum group by l.stoloc) b on b.stoloc = d.tostol where d.usr_id = " + 
+                    "a.adrnam and d.frstol like 'WAV%' and d.lodnum like 'L%' and d.prtnum = k.prtnum and d.prt_client_id in ('100001', '100002') and k.alt_prt_typ = 'VPN' and d.trndte >= to_date(to_char(current_timestamp, 'yyyymmdd'), " +
+                    "'yyyymmdd') and a.adrtyp = 'USR' and d.to_arecod like 'PCKCS%' and d.oprcod <> 'PCKREP' and d.frstol like 'WAV%'";
 
                 IEnumerable<Record> results = cnn.Query<Record>(query);
                 var users = new List<string>();
@@ -34,20 +35,34 @@ namespace LastFiveItemsPutaway
 
                 foreach(var user in users)
                 {
-                    var userRecords = results.Where(i => i.usr_id.Equals(user)).ToList();
-                    var dates = userRecords.Select(i => i.trndte).OrderBy(i => i).ToArray();
+                    var userRecords = results.Where(i => i.usr_id.Equals(user)).Where(i => i.location_units.Equals(i.trnqty)).OrderBy(i => i.location_units).ToList();
+                    var userDateRecords = results.Where(i => i.usr_id.Equals(user)).OrderBy(i => i.trndte).ToList();
 
-                    for(int i = dates.Length-1; i >= dates.Length - 5; i--)
+                    var recordsToAdd = new List<Record>();
+
+                    for(int i = 0; i < 5; i++)
                     {
                         try
                         {
-                            records.Add(userRecords.Where(b => b.trndte.Equals(dates[i])).First());
+                            recordsToAdd.Add(userRecords[i]);
                         }
                         catch { }
                     }
+
+                    var recordsleft = 5 - recordsToAdd.Count;
+
+                    for(int i = 1; i <= recordsleft; i++)
+                    {
+                        var record = userDateRecords[userDateRecords.Count - i];
+                        if (!recordsToAdd.Contains(record))
+                            recordsToAdd.Add(record);
+                        else i -= 1;
+                    }
+
+                    recordsToAdd.ForEach(i => Console.WriteLine(i.ToString()));
+
                 }
 
-                File.WriteAllText(@"C:\Users\nbrowning\Desktop\Last_Five_Items_Putaway.csv", ToCSV(records));
                 Console.ReadLine();
             }
         }
@@ -94,6 +109,8 @@ namespace LastFiveItemsPutaway
             public string first_name { get; set; }
             public string last_name { get; set; }
             public string usr_id { get; set; }
+            public int location_units { get; set; }
+            public int trnqty { get; set; }
 
             public static string ToPropertyString()
             {
