@@ -36,7 +36,9 @@ namespace LastFiveItemsPutaway
                 foreach(var user in users)
                 {
                     var userRecords = results.Where(i => i.usr_id.Equals(user)).Where(i => i.location_units.Equals(i.trnqty)).OrderBy(i => i.location_units).ToList();
-                    var userDateRecords = results.Where(i => i.usr_id.Equals(user)).OrderBy(i => i.trndte).ToList();
+                    var userDateRecords = results.Where(i => i.usr_id.Equals(user)).ToList();
+
+                    var dates = userDateRecords.Select(i => i.trndte).OrderBy(i => i).ToArray();
 
                     var recordsToAdd = new List<Record>();
 
@@ -50,13 +52,26 @@ namespace LastFiveItemsPutaway
                     }
 
                     var recordsleft = 5 - recordsToAdd.Count;
+                    int position = 1;
+                    Console.WriteLine(recordsleft);
 
-                    for(int i = 1; i <= recordsleft; i++)
+
+                    while (recordsleft > 0)
                     {
-                        var record = userDateRecords[userDateRecords.Count - i];
-                        if (!recordsToAdd.Contains(record))
-                            recordsToAdd.Add(record);
-                        else i -= 1;
+                        try
+                        {
+                            var record = userDateRecords.Where(l => l.trndte.Equals(dates[dates.Length - position])).First();
+                            if (!recordsToAdd.Contains(record))
+                            {
+                                recordsToAdd.Add(record);
+                                recordsleft -= 1;
+                            }
+                            position++;
+                        }
+                        catch
+                        {
+                            recordsleft--;
+                        }
                     }
 
                     recordsToAdd.ForEach(i => Console.WriteLine(i.ToString()));
