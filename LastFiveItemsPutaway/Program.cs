@@ -53,8 +53,6 @@ namespace LastFiveItemsPutaway
 
                     var recordsleft = 5 - recordsToAdd.Count;
                     int position = 1;
-                    Console.WriteLine(recordsleft);
-
 
                     while (recordsleft > 0)
                     {
@@ -73,12 +71,8 @@ namespace LastFiveItemsPutaway
                             recordsleft--;
                         }
                     }
-
-                    recordsToAdd.ForEach(i => Console.WriteLine(i.ToString()));
-
                 }
-
-                Console.ReadLine();
+                File.WriteAllText(@"C:\Users\nbrowning\Desktop\Last_Five_Items_Putaway.csv", ToCSV(records));
             }
         }
 
